@@ -20,11 +20,13 @@ app.use(express.json());
 //routes
 const authRoutes = require('./routes/authRoutes');
 const movieRoutes = require('./routes/movieRoutes');
+const showRoutes = require('./routes/showRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
 
 app.use('/api/movies', movieRoutes);
 app.use('/api/auth', authRoutes);
-
-
+app.use('/api/shows', showRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 
 

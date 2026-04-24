@@ -2,6 +2,18 @@
 // show represents a specific screening of a movie at a particular time and location
 const mongoose = require('mongoose');
 
+
+const seatSchema = new mongoose.Schema({
+    seatNumber: {
+        type: String,
+        required: true
+    },
+    isBooked: {
+        type: Boolean,
+        default: false
+    }
+})
+
 //schema for show document
 const showSchema = new mongoose.Schema({
     movie:{
