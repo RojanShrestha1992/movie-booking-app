@@ -1,5 +1,35 @@
 // handle all the movie related operations here
 const Movie = require("../models/Movie");
+const { uploadPosterToImageKit } = require("../config/imagekit");
+
+const parseGenre = (genreInput) => {
+  if (Array.isArray(genreInput)) {
+    return genreInput.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof genreInput === "string") {
+    const trimmed = genreInput.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item) => String(item).trim()).filter(Boolean);
+        }
+      } catch (err) {
+        // Fall back to comma-separated parsing.
+      }
+    }
+
+    return trimmed
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
 
 // @route POST /api/movies
 // @desc Create a new movie
@@ -7,21 +37,26 @@ const Movie = require("../models/Movie");
 const addMovie = async (req, res) => {
   try {
     //1. get movie data from request body
-    const { title, director, releaseDate, genre, language, description, duration, poster } = req.body;
+    const { title, director, releaseDate, genre, language, description, duration } = req.body;
+    const normalizedGenre = parseGenre(genre);
+
     // 2. validate the data
-    if (!title || !director || !releaseDate || !genre || !language || !description || !duration || !poster) {
+    if (!title || !director || !releaseDate || normalizedGenre.length === 0 || !language || !description || !duration || !req.file) {
       return res.status(400).json({
-        message: "All fields are required",
+        message: "All fields are required and poster image must be uploaded",
         success: false,
       });
     }
+
+    const poster = await uploadPosterToImageKit(req.file.buffer, req.file.originalname);
+
     // 3. create movie in the database
     const movie = await Movie.create({
       title,
       description,
       director,
-      duration,
-      genre,
+      duration: Number(duration),
+      genre: normalizedGenre,
       language,
       releaseDate,
       poster,
@@ -106,10 +141,23 @@ const updateMovie = async (req, res) => {
         message: "Movie not found",
       });
     }
+    const updates = { ...req.body };
+    if (updates.duration !== undefined) {
+      updates.duration = Number(updates.duration);
+    }
+
+    if (updates.genre !== undefined) {
+      updates.genre = parseGenre(updates.genre);
+    }
+
+    if (req.file) {
+      updates.poster = await uploadPosterToImageKit(req.file.buffer, req.file.originalname);
+    }
+
     // update movie with the data from request body
     const updatedMovie = await Movie.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updates,
       { new: true, runValidators: true },
     );
     res.status(200).json({

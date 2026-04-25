@@ -11,15 +11,16 @@ const {
 
 //middleware to protect routes
 const {verifyToken, verifyAdmin} = require("../middleware/authMiddleware");
+const { uploadPoster } = require("../middleware/uploadMiddleware");
 
 // GET all movies
 router.get("/", getAllMovies);
 // GET a movie by ID
 router.get("/:id", getMovieById);
 // POST a new movie (admin only)
-router.post("/", verifyToken, verifyAdmin, addMovie);
+router.post("/", verifyToken, verifyAdmin, uploadPoster.single("poster"), addMovie);
 // PUT update a movie by ID (admin only)
-router.put("/:id", verifyToken, verifyAdmin, updateMovie);
+router.put("/:id", verifyToken, verifyAdmin, uploadPoster.single("poster"), updateMovie);
 // DELETE a movie by ID (admin only)
 router.delete("/:id", verifyToken, verifyAdmin, deleteMovie);
 

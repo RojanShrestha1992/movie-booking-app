@@ -112,7 +112,7 @@ const getAllShows = async (req, res) => {
 const getShowsByMovie = async (req, res)=>{
     try{
         const shows = await Show.find({
-            movie: req.params.id,
+            movie: req.params.movieId,
             isActive: true,
             showTime: {$gte: new Date()} // only future shows
         }).populate("movie", "title duration language poster genre").sort({showTime: 1});
