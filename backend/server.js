@@ -22,11 +22,13 @@ const authRoutes = require('./routes/authRoutes');
 const movieRoutes = require('./routes/movieRoutes');
 const showRoutes = require('./routes/showRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
+const theaterRoutes = require('./routes/theaterRoutes');
 
 app.use('/api/movies', movieRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/shows', showRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/theaters', theaterRoutes);
 
 app.use((err, req, res, next) => {
     if (err && err.name === 'MulterError') {

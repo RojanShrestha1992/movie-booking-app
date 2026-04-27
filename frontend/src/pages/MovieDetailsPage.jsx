@@ -5,12 +5,48 @@ import Loader from '../components/Loader';
 import { getErrorMessage, movieApi, showApi } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
+const getYouTubeEmbedUrl = (url) => {
+  if (!url || typeof url !== 'string') {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(url.trim());
+    const host = parsed.hostname.replace('www.', '');
+    let videoId = '';
+
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      videoId = parsed.searchParams.get('v') || '';
+      if (!videoId && parsed.pathname.startsWith('/embed/')) {
+        videoId = parsed.pathname.split('/embed/')[1] || '';
+      }
+      if (!videoId && parsed.pathname.startsWith('/shorts/')) {
+        videoId = parsed.pathname.split('/shorts/')[1] || '';
+      }
+    }
+
+    if (host === 'youtu.be') {
+      videoId = parsed.pathname.replace('/', '');
+    }
+
+    videoId = videoId.split('?')[0].split('&')[0];
+    if (!videoId) {
+      return '';
+    }
+
+    return `https://www.youtube.com/embed/${videoId}`;
+  } catch {
+    return '';
+  }
+};
+
 const MovieDetailsPage = () => {
   const { movieId } = useParams();
   const { isAuthenticated } = useAuth();
 
   const [movie, setMovie] = useState(null);
   const [shows, setShows] = useState([]);
+  const [selectedTheater, setSelectedTheater] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -34,6 +70,69 @@ const MovieDetailsPage = () => {
     () => shows.filter((show) => new Date(show.showTime) > new Date() && show.isActive !== false),
     [shows]
   );
+
+  const showsByTheater = useMemo(() => {
+    const grouped = new Map();
+
+    upcomingShows.forEach((show) => {
+      const theaterId = show.theater?._id || 'unknown-theater';
+      const theaterName = show.theater?.name || 'Main Hall';
+      const theaterLocation = show.theater?.location || '';
+
+      if (!grouped.has(theaterId)) {
+        grouped.set(theaterId, {
+          theaterId,
+          theaterName,
+          theaterLocation,
+          dates: new Map(),
+        });
+      }
+
+      const showDate = new Date(show.showTime);
+      const dateKey = `${showDate.getFullYear()}-${showDate.getMonth()}-${showDate.getDate()}`;
+
+      const theaterGroup = grouped.get(theaterId);
+      if (!theaterGroup.dates.has(dateKey)) {
+        theaterGroup.dates.set(dateKey, {
+          label: showDate.toLocaleDateString(undefined, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          }),
+          shows: [],
+        });
+      }
+
+      theaterGroup.dates.get(dateKey).shows.push(show);
+    });
+
+    return Array.from(grouped.values()).map((theaterGroup) => ({
+      ...theaterGroup,
+      dates: Array.from(theaterGroup.dates.values()).map((dateGroup) => ({
+        ...dateGroup,
+        shows: dateGroup.shows.sort((a, b) => new Date(a.showTime) - new Date(b.showTime)),
+      })),
+    }));
+  }, [upcomingShows]);
+
+  const theaterFilterOptions = useMemo(
+    () =>
+      showsByTheater.map((group) => ({
+        id: group.theaterId,
+        name: group.theaterName,
+      })),
+    [showsByTheater]
+  );
+
+  const filteredTheaterShows = useMemo(() => {
+    if (selectedTheater === 'all') {
+      return showsByTheater;
+    }
+
+    return showsByTheater.filter((group) => group.theaterId === selectedTheater);
+  }, [selectedTheater, showsByTheater]);
+
+  const trailerEmbedUrl = useMemo(() => getYouTubeEmbedUrl(movie?.trailerUrl), [movie?.trailerUrl]);
 
   if (loading) return <Loader label="Loading movie and showtimes..." />;
 
@@ -87,25 +186,94 @@ const MovieDetailsPage = () => {
       <div className="space-y-4">
         <h2 className="font-display text-3xl uppercase tracking-wide text-brand-ink">Available Showtimes</h2>
 
-        {upcomingShows.length === 0 ? (
+        {showsByTheater.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
             No upcoming shows available right now.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {upcomingShows.map((show) => (
-              <article key={show._id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold text-slate-800">{new Date(show.showTime).toLocaleString()}</p>
-                <p className="mt-1 text-sm text-slate-600">Price: ${show.ticketPrice} per seat</p>
-
-                <Link
-                  to={isAuthenticated ? `/shows/${show._id}/book` : '/login'}
-                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-slate"
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+                  selectedTheater === 'all'
+                    ? 'bg-brand-ink text-white'
+                    : 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                }`}
+                onClick={() => setSelectedTheater('all')}
+              >
+                All Theaters
+              </button>
+              {theaterFilterOptions.map((theater) => (
+                <button
+                  type="button"
+                  key={theater.id}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+                    selectedTheater === theater.id
+                      ? 'bg-brand-ink text-white'
+                      : 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                  }`}
+                  onClick={() => setSelectedTheater(theater.id)}
                 >
-                  <Ticket size={16} /> {isAuthenticated ? 'Select Seats' : 'Login to Book'}
-                </Link>
+                  {theater.name}
+                </button>
+              ))}
+            </div>
+
+            {filteredTheaterShows.map((theaterGroup) => (
+              <article
+                key={theaterGroup.theaterId}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+              >
+                <p className="text-base font-semibold text-slate-900">{theaterGroup.theaterName}</p>
+                <p className="text-sm text-slate-600">{theaterGroup.theaterLocation || 'Location unavailable'}</p>
+
+                <div className="mt-4 space-y-3">
+                  {theaterGroup.dates.map((dateGroup) => (
+                    <div key={`${theaterGroup.theaterName}-${dateGroup.label}`} className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{dateGroup.label}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {dateGroup.shows.map((show) => (
+                          <Link
+                            key={show._id}
+                            to={isAuthenticated ? `/shows/${show._id}/book` : '/login'}
+                            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:border-brand-ink hover:bg-slate-50"
+                          >
+                            <Clock3 size={14} />
+                            {new Date(show.showTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <span className="text-xs text-slate-500">${show.ticketPrice}</span>
+                            <Ticket size={14} className="text-brand-ember" />
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </article>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="font-display text-3xl uppercase tracking-wide text-brand-ink">Trailer</h2>
+
+        {trailerEmbedUrl ? (
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-sm">
+            <div className="relative w-full pb-[56.25%]">
+              <iframe
+                src={trailerEmbedUrl}
+                title={`${movie.title} trailer`}
+                className="absolute left-0 top-0 h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+            Trailer not available for this movie yet.
           </div>
         )}
       </div>

@@ -21,6 +21,10 @@ const showSchema = new mongoose.Schema({
         ref: 'Movie',
         required: [true, 'Movie reference is required']
     },
+    theater: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Theater',
+    },
     showTime: {
         type: Date,
         required: [true, 'Show time is required']

@@ -33,6 +33,11 @@ const movieSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Poster URL is required'],
     },
+    trailerUrl: {
+        type: String,
+        trim: true,
+        default: ''
+    },
     isActive: {
         type: Boolean,
         default: true

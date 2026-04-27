@@ -31,13 +31,26 @@ const parseGenre = (genreInput) => {
   return [];
 };
 
+const normalizeTrailerUrl = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  return trimmed;
+};
+
 // @route POST /api/movies
 // @desc Create a new movie
 // @access Private
 const addMovie = async (req, res) => {
   try {
     //1. get movie data from request body
-    const { title, director, releaseDate, genre, language, description, duration } = req.body;
+    const { title, director, releaseDate, genre, language, description, duration, trailerUrl } = req.body;
     const normalizedGenre = parseGenre(genre);
 
     // 2. validate the data
@@ -60,6 +73,7 @@ const addMovie = async (req, res) => {
       language,
       releaseDate,
       poster,
+      trailerUrl: normalizeTrailerUrl(trailerUrl),
     });
 
     //4. send response
@@ -148,6 +162,10 @@ const updateMovie = async (req, res) => {
 
     if (updates.genre !== undefined) {
       updates.genre = parseGenre(updates.genre);
+    }
+
+    if (updates.trailerUrl !== undefined) {
+      updates.trailerUrl = normalizeTrailerUrl(updates.trailerUrl);
     }
 
     if (req.file) {

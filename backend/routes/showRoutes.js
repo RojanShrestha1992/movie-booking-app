@@ -6,6 +6,7 @@ const router = express.Router();
 const {
     createShow,
     getAllShows,
+    getUpcomingShows,
     getShowsByMovie,
     getShowById,
     updateShow,
@@ -15,6 +16,8 @@ const {
 const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 // get all shows
 router.get('/', getAllShows);
+// get upcoming shows
+router.get('/upcoming', getUpcomingShows);
 // get shows by movie ID
 router.get('/movie/:movieId', getShowsByMovie);
 // get show by ID

@@ -28,11 +28,19 @@ export const movieApi = {
 
 export const showApi = {
   all: () => api.get('/shows'),
+  upcoming: (limit = 20) => api.get(`/shows/upcoming?limit=${limit}`),
   byMovie: (movieId) => api.get(`/shows/movie/${movieId}`),
   one: (id) => api.get(`/shows/${id}`),
   create: (payload) => api.post('/shows', payload),
   update: (id, payload) => api.put(`/shows/${id}`, payload),
   remove: (id) => api.delete(`/shows/${id}`),
+};
+
+export const theaterApi = {
+  all: () => api.get('/theaters'),
+  create: (payload) => api.post('/theaters', payload),
+  update: (id, payload) => api.put(`/theaters/${id}`, payload),
+  remove: (id) => api.delete(`/theaters/${id}`),
 };
 
 export const bookingApi = {

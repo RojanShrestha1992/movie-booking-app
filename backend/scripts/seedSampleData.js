@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 
 const Movie = require('../models/Movie');
 const Show = require('../models/Show');
+const Theater = require('../models/Theater');
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -47,6 +48,7 @@ const seedMoviesAndShows = async () => {
       language: 'English',
       releaseDate: new Date('2025-09-10'),
       poster: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=1200&q=80',
+      trailerUrl: 'https://www.youtube.com/watch?v=8ugaeA-nMTc',
       isActive: true,
     },
     {
@@ -57,6 +59,7 @@ const seedMoviesAndShows = async () => {
       language: 'Nepali',
       releaseDate: new Date('2024-12-05'),
       poster: 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=1200&q=80',
+      trailerUrl: 'https://www.youtube.com/watch?v=6ZfuNTqbHE8',
       isActive: true,
     },
     {
@@ -67,6 +70,7 @@ const seedMoviesAndShows = async () => {
       language: 'Hindi',
       releaseDate: new Date('2026-01-19'),
       poster: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=80',
+      trailerUrl: 'https://youtu.be/TcMBFSGVi1c',
       isActive: true,
     },
     {
@@ -77,11 +81,13 @@ const seedMoviesAndShows = async () => {
       language: 'English',
       releaseDate: new Date('2025-06-21'),
       poster: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1200&q=80',
+      trailerUrl: 'https://www.youtube.com/watch?v=5PSNL1qE6VY',
       isActive: true,
     },
   ];
 
   const moviesByTitle = new Map();
+  const theatersByKey = new Map();
 
   for (const movieData of movieSeeds) {
     const movie = await Movie.findOneAndUpdate(
@@ -92,31 +98,51 @@ const seedMoviesAndShows = async () => {
     moviesByTitle.set(movie.title, movie);
   }
 
+  const theaterSeeds = [
+    { name: 'CinePrime Downtown', location: 'Kathmandu - Durbar Marg', totalScreens: 4, isActive: true },
+    { name: 'Skyline Cinemas', location: 'Lalitpur - Jawalakhel', totalScreens: 3, isActive: true },
+    { name: 'Valley Plex', location: 'Bhaktapur - Suryabinayak', totalScreens: 5, isActive: true },
+  ];
+
+  for (const theaterData of theaterSeeds) {
+    const theater = await Theater.findOneAndUpdate(
+      { name: theaterData.name, location: theaterData.location },
+      { $set: theaterData },
+      { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
+    );
+
+    theatersByKey.set(theater.name, theater);
+  }
+
   const showSeeds = [
-    { title: 'The Last Orbit', showTime: makeShowDate(1, 13, 0), ticketPrice: 14, totalSeats: 60 },
-    { title: 'The Last Orbit', showTime: makeShowDate(1, 19, 30), ticketPrice: 16, totalSeats: 60 },
-    { title: 'Monsoon Letters', showTime: makeShowDate(2, 12, 15), ticketPrice: 10, totalSeats: 60 },
-    { title: 'Monsoon Letters', showTime: makeShowDate(2, 17, 45), ticketPrice: 12, totalSeats: 60 },
-    { title: 'Code Red: Valley', showTime: makeShowDate(3, 15, 0), ticketPrice: 13, totalSeats: 60 },
-    { title: 'Code Red: Valley', showTime: makeShowDate(3, 21, 0), ticketPrice: 15, totalSeats: 60 },
-    { title: 'Laugh Track Live', showTime: makeShowDate(4, 11, 30), ticketPrice: 9, totalSeats: 60 },
-    { title: 'Laugh Track Live', showTime: makeShowDate(4, 20, 0), ticketPrice: 11, totalSeats: 60 },
+    { title: 'The Last Orbit', theater: 'CinePrime Downtown', showTime: makeShowDate(1, 13, 0), ticketPrice: 14, totalSeats: 60 },
+    { title: 'The Last Orbit', theater: 'CinePrime Downtown', showTime: makeShowDate(1, 19, 30), ticketPrice: 16, totalSeats: 60 },
+    { title: 'The Last Orbit', theater: 'Skyline Cinemas', showTime: makeShowDate(1, 21, 15), ticketPrice: 15, totalSeats: 60 },
+    { title: 'Monsoon Letters', theater: 'Skyline Cinemas', showTime: makeShowDate(2, 12, 15), ticketPrice: 10, totalSeats: 60 },
+    { title: 'Monsoon Letters', theater: 'Valley Plex', showTime: makeShowDate(2, 17, 45), ticketPrice: 12, totalSeats: 60 },
+    { title: 'Code Red: Valley', theater: 'Valley Plex', showTime: makeShowDate(3, 15, 0), ticketPrice: 13, totalSeats: 60 },
+    { title: 'Code Red: Valley', theater: 'CinePrime Downtown', showTime: makeShowDate(3, 21, 0), ticketPrice: 15, totalSeats: 60 },
+    { title: 'Laugh Track Live', theater: 'Skyline Cinemas', showTime: makeShowDate(4, 11, 30), ticketPrice: 9, totalSeats: 60 },
+    { title: 'Laugh Track Live', theater: 'Valley Plex', showTime: makeShowDate(4, 20, 0), ticketPrice: 11, totalSeats: 60 },
   ];
 
   let createdShows = 0;
 
   for (const showData of showSeeds) {
     const movie = moviesByTitle.get(showData.title);
-    if (!movie) continue;
+    const theater = theatersByKey.get(showData.theater);
+    if (!movie || !theater) continue;
 
     const existing = await Show.findOne({
       movie: movie._id,
+      theater: theater._id,
       showTime: showData.showTime,
     });
 
     if (!existing) {
       await Show.create({
         movie: movie._id,
+        theater: theater._id,
         showTime: showData.showTime,
         ticketPrice: showData.ticketPrice,
         totalSeats: showData.totalSeats,
@@ -129,8 +155,9 @@ const seedMoviesAndShows = async () => {
 
   const movieCount = await Movie.countDocuments({ isActive: true });
   const showCount = await Show.countDocuments({ isActive: true });
+  const theaterCount = await Theater.countDocuments({ isActive: true });
 
-  console.log(`Seed complete. Active movies: ${movieCount}, active shows: ${showCount}, new shows inserted: ${createdShows}.`);
+  console.log(`Seed complete. Active movies: ${movieCount}, active theaters: ${theaterCount}, active shows: ${showCount}, new shows inserted: ${createdShows}.`);
 
   await mongoose.disconnect();
 };
