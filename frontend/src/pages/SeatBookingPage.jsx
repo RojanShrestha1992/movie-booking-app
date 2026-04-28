@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Armchair, MonitorPlay, Ticket, TriangleAlert } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Loader from '../components/Loader';
@@ -10,6 +10,7 @@ const SeatBookingPage = () => {
 
   const [show, setShow] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const lastSelectedRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -54,13 +55,40 @@ const SeatBookingPage = () => {
 
   const totalAmount = useMemo(() => (show ? selectedSeats.length * show.ticketPrice : 0), [selectedSeats.length, show]);
 
-  const toggleSeat = (seat) => {
+  const toggleSeat = (seat, e) => {
     if (seat.isBooked) return;
+
+    // shift-select range within same row
+    if (e?.shiftKey && lastSelectedRef.current) {
+      const last = lastSelectedRef.current;
+      const row = seat.seatNumber[0];
+      const seatsInRow = groupedSeats[row] || [];
+      const indices = seatsInRow.map((s) => s.seatNumber);
+      const start = indices.indexOf(last);
+      const end = indices.indexOf(seat.seatNumber);
+      if (start !== -1 && end !== -1) {
+        const [a, b] = start < end ? [start, end] : [end, start];
+        const range = indices.slice(a, b + 1).filter((sn) => {
+          const sObj = seatsInRow.find((s) => s.seatNumber === sn);
+          return sObj && !sObj.isBooked;
+        });
+
+        setSelectedSeats((prev) => {
+          const asSet = new Set(prev);
+          range.forEach((sn) => asSet.add(sn));
+          return Array.from(asSet);
+        });
+        lastSelectedRef.current = seat.seatNumber;
+        return;
+      }
+    }
 
     setSelectedSeats((prev) => {
       if (prev.includes(seat.seatNumber)) {
+        lastSelectedRef.current = seat.seatNumber;
         return prev.filter((item) => item !== seat.seatNumber);
       }
+      lastSelectedRef.current = seat.seatNumber;
       return [...prev, seat.seatNumber];
     });
   };
@@ -159,8 +187,14 @@ const SeatBookingPage = () => {
                     <button
                       type="button"
                       key={seat.seatNumber}
-                      className={`group flex h-14 w-14 flex-col items-center justify-center rounded-xl border text-[10px] font-semibold transition sm:h-16 sm:w-16 sm:text-xs ${stateClass}`}
-                      onClick={() => toggleSeat(seat)}
+                      className={`group flex h-12 w-12 flex-col items-center justify-center rounded-lg border text-[10px] font-semibold transition sm:h-14 sm:w-14 sm:text-xs ${stateClass}`}
+                      onClick={(e) => toggleSeat(seat, e)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleSeat(seat, e);
+                        }
+                      }}
                       disabled={seat.isBooked || saving}
                       aria-label={`Seat ${seat.seatNumber}`}
                     >

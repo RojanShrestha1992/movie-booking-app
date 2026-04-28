@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import TrailerModal from './TrailerModal';
 
 const NowPlayingSlider = ({ movies = [] }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -40,7 +41,10 @@ const NowPlayingSlider = ({ movies = [] }) => {
   const scrollPrev = () => emblaApi?.scrollPrev();
   const scrollNext = () => emblaApi?.scrollNext();
 
+  const [trailerUrl, setTrailerUrl] = useState('');
+
   return (
+    <>
     <section
       className="relative mx-auto w-full max-w-[92rem] overflow-hidden rounded-2xl border border-white/10 bg-brand-ink shadow-card"
       onMouseEnter={() => setIsHovered(true)}
@@ -73,7 +77,7 @@ const NowPlayingSlider = ({ movies = [] }) => {
                     <span>{movie.language || 'English'}</span>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
                     <Link
                       to={`/movies/${movie._id}`}
                       className="inline-flex rounded-full bg-brand-ember px-4 py-2 text-xs font-bold uppercase tracking-wide text-black transition hover:bg-yellow-400"
@@ -83,6 +87,7 @@ const NowPlayingSlider = ({ movies = [] }) => {
                     <button
                       type="button"
                       className="inline-flex rounded-full border border-white/40 bg-black/20 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-black/35"
+                      onClick={() => setTrailerUrl(movie.trailerUrl)}
                     >
                       Watch Trailer
                     </button>
@@ -127,6 +132,8 @@ const NowPlayingSlider = ({ movies = [] }) => {
         ))}
       </div>
     </section>
+    {trailerUrl ? <TrailerModal trailerUrl={trailerUrl} onClose={() => setTrailerUrl('')} title="Trailer" /> : null}
+    </>
   );
 };
 

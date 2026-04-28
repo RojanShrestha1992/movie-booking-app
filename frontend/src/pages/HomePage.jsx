@@ -6,6 +6,9 @@ import { getErrorMessage, movieApi, showApi } from '../lib/api';
 
 const HomePage = () => {
   const [movies, setMovies] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [genreFilter, setGenreFilter] = useState('all');
+  const [languageFilter, setLanguageFilter] = useState('all');
   const [upcomingShowMovies, setUpcomingShowMovies] = useState([]);
   const [activeTab, setActiveTab] = useState('now-playing');
   const [loading, setLoading] = useState(true);
@@ -35,22 +38,55 @@ const HomePage = () => {
     loadMovies();
   }, []);
 
+  // derived lists for filter controls
+  const availableGenres = useMemo(() => {
+    const setG = new Set();
+    movies.forEach((m) => (m.genre || []).forEach((g) => setG.add(g)));
+    return Array.from(setG).sort();
+  }, [movies]);
+
+  const availableLanguages = useMemo(() => {
+    const setL = new Set();
+    movies.forEach((m) => m.language && setL.add(m.language));
+    return Array.from(setL).sort();
+  }, [movies]);
+
+  // debounced search state
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(searchTerm.trim().toLowerCase()), 250);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  const filteredMovies = useMemo(() => {
+    return movies.filter((movie) => {
+      if (genreFilter !== 'all' && !(movie.genre || []).includes(genreFilter)) return false;
+      if (languageFilter !== 'all' && movie.language !== languageFilter) return false;
+      if (debouncedSearch) {
+        const s = debouncedSearch;
+        const inTitle = movie.title?.toLowerCase().includes(s);
+        const inGenre = (movie.genre || []).some((g) => g.toLowerCase().includes(s));
+        return inTitle || inGenre;
+      }
+      return true;
+    });
+  }, [movies, genreFilter, languageFilter, debouncedSearch]);
+
   const nowPlayingMovies = useMemo(() => {
     const today = new Date();
-    const released = movies.filter((movie) => new Date(movie.releaseDate) <= today);
-    return released;
-  }, [movies]);
+    return filteredMovies.filter((movie) => new Date(movie.releaseDate) <= today);
+  }, [filteredMovies]);
 
   const upcomingMovies = useMemo(() => {
     const today = new Date();
-    const releaseDateUpcoming = movies.filter((movie) => new Date(movie.releaseDate) > today);
+    const releaseDateUpcoming = filteredMovies.filter((movie) => new Date(movie.releaseDate) > today);
 
     const merged = new Map();
     releaseDateUpcoming.forEach((movie) => merged.set(movie._id, movie));
     upcomingShowMovies.forEach((movie) => merged.set(movie._id, movie));
 
     return Array.from(merged.values());
-  }, [movies, upcomingShowMovies]);
+  }, [filteredMovies, upcomingShowMovies]);
 
   const gridMovies = activeTab === 'upcoming' ? upcomingMovies : nowPlayingMovies;
 
@@ -80,13 +116,51 @@ const HomePage = () => {
 
         {!loading && !error && movies.length > 0 ? (
           <div className="space-y-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <button type="button" className={tabClass('now-playing')} onClick={() => setActiveTab('now-playing')}>
-                Now Showing
-              </button>
-              <button type="button" className={tabClass('upcoming')} onClick={() => setActiveTab('upcoming')}>
-                Upcoming Releases
-              </button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex w-full max-w-2xl items-center gap-3">
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search movies or genres..."
+                  className="w-full rounded-full bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/50 outline-none"
+                />
+
+                <select
+                  value={genreFilter}
+                  onChange={(e) => setGenreFilter(e.target.value)}
+                  className="hidden rounded-full bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 outline-none md:inline"
+                >
+                  <option value="all">All genres</option>
+                  {availableGenres.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={languageFilter}
+                  onChange={(e) => setLanguageFilter(e.target.value)}
+                  className="hidden rounded-full bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 outline-none md:inline"
+                >
+                  <option value="all">All languages</option>
+                  {availableLanguages.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button type="button" className={tabClass('now-playing')} onClick={() => setActiveTab('now-playing')}>
+                  Now Showing
+                </button>
+                <button type="button" className={tabClass('upcoming')} onClick={() => setActiveTab('upcoming')}>
+                  Upcoming Releases
+                </button>
+              </div>
             </div>
 
             {gridMovies.length === 0 ? (

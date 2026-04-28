@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import TrailerModal from './TrailerModal';
 
 const MovieCard = ({ movie, badgeLabel = 'Now Playing' }) => {
+  const [trailerUrl, setTrailerUrl] = useState('');
+
   return (
     <article className="group relative mx-auto w-full max-w-[220px] overflow-hidden rounded-xl border border-white/10 bg-slate-900 shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-2xl">
       <div className="relative h-[235px] overflow-hidden rounded-b-xl">
@@ -25,7 +29,15 @@ const MovieCard = ({ movie, badgeLabel = 'Now Playing' }) => {
         >
           Book Now
         </Link>
+        <button
+          type="button"
+          onClick={() => setTrailerUrl(movie.trailerUrl)}
+          className="mt-2 w-full rounded-full border border-white/10 bg-black/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 hover:bg-white/5"
+        >
+          Watch Trailer
+        </button>
       </div>
+      {trailerUrl ? <TrailerModal trailerUrl={trailerUrl} onClose={() => setTrailerUrl('')} title={movie.title} /> : null}
     </article>
   );
 };
